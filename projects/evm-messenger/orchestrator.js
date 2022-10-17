@@ -7,23 +7,49 @@ import {
 } from "@certusone/wormhole-sdk";
 
 import fetch from "node-fetch";
+// import Structs from "./chains/evm/out/Structs.sol/Structs.json" assert {type: "json"};
 
 async function main() {
     let config = JSON.parse(fs.readFileSync("./xdapp.config.json").toString());
+    const _abiCoder = new ethers.utils.AbiCoder;
+    const Signature = [
+		"bytes32", 
+		"bytes32", 
+		"uint8", 
+		"uint8"
+    ]
+    const VM = [
+        "uint8",
+		"uint32",
+		"uint32",
+		"uint16",
+		"bytes32",
+		"uint64",
+		"uint8",
+		"bytes",
+		"uint32",
+		"tuple(bytes32, bytes32, uint8, uint8)",
+		"bytes32",
+    ]
+
+
+    console.log(
+        `process.argv....`, process.argv
+    );
 
     let network = config.networks[process.argv[2]];
     if (!network) {
         throw new Error("Network not defined in config file.");
     }
-
+    
     if (process.argv[3] == "deploy") {
         if (network.type == "evm") {
             console.log(
                 `Deploying EVM network: ${process.argv[2]} to ${network.rpc}`
             );
-
+            // IPLNTEST // change contract name from messenger to IPLNTEST
             exec(
-                `cd chains/evm && forge build && forge create --legacy --rpc-url ${network.rpc} --private-key ${network.privateKey} src/Messenger.sol:Messenger && exit`,
+                `cd chains/evm && forge build && forge create --legacy --rpc-url ${network.rpc} --private-key ${network.privateKey} src/IPLNTEST.sol:Messenger && exit`,
                 (err, out, errStr) => {
                     if (err) {
                         throw new Error(err);
@@ -75,7 +101,7 @@ async function main() {
                 JSON.parse(
                     fs
                         .readFileSync(
-                            "./chains/evm/out/Messenger.sol/Messenger.json"
+                            "./chains/evm/out/IPLNTEST.sol/IPLN.json"
                         )
                         .toString()
                 ).abi,
@@ -85,11 +111,12 @@ async function main() {
                 targetNetwork.wormholeChainId,
                 emitterAddr
             );
+
         }
         console.log(
             `Network(${process.argv[2]}) Registered Emitter: ${targetNetwork.deployedAddress} from Chain: ${process.argv[4]}`
         );
-    } else if (process.argv[3] == "send_msg") {
+    } else if (process.argv[3] == "escrowFunds") {
         if (!network.deployedAddress) {
             throw new Error("Deploy to this network first!");
         }
@@ -103,15 +130,20 @@ async function main() {
                 JSON.parse(
                     fs
                         .readFileSync(
-                            "./chains/evm/out/Messenger.sol/Messenger.json"
+                            "./chains/evm/out/IPLNTEST.sol/IPLN.json"
                         )
                         .toString()
                 ).abi,
                 signer
             );
+            const mssgString = ['0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1','0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1','1000'];
+
             const tx = await (
-                await messenger.sendMsg(Buffer.from(process.argv[4]))
+                await messenger.sendMsg(mssgString)
+                // await messenger.sendMsg(Buffer.from(process.argv[4]))
+                //lock the token using the escrowFunds
             ).wait();
+            console.log('message was sent, and message object', tx);
 
             await new Promise((r) => setTimeout(r, 5000));
             const emitterAddr = getEmitterAddressEth(messenger.address);
@@ -158,15 +190,36 @@ async function main() {
                 JSON.parse(
                     fs
                         .readFileSync(
-                            "./chains/evm/out/Messenger.sol/Messenger.json"
+                            "./chains/evm/out/IPLNTEST.sol/IPLN.json"
                         )
                         .toString()
                 ).abi,
                 signer
             );
+            // function base64ToHex(str) {
+            //     const raw = atob(str);
 
+            //     console.log("atob data in raw variable...",raw);
+            //     let result = '';
+            //     for (let i = 0; i < raw.length; i++) {
+            //       const hex = raw.charCodeAt(i).toString(16);
+            //       result += (hex.length === 2 ? hex : '0' + hex);
+            //     }
+            //     return ("0x"+result).toUpperCase();
+            //   }
+              
+            //   console.log(base64ToHex("oAAABTUAAg=="));
+
+            const bytesVersionOfVaa = Buffer.from(vaaBytes, "base64");
+            console.log('bytesVersionOfVaa....', bytesVersionOfVaa);
+            // console.log('hexVersionOfVaa....', base64ToHex(vaaBytes));
+
+            console.log("Vaa byte output....", vaaBytes);
+            // try to deconstruct bytesVersionOfVaa into readable data
+            // console.log("trying to decode bytes version of vaa...", _abiCoder.decode(VM,vaaBytes) );
             const tx = await messenger.receiveEncodedMsg(
                 Buffer.from(vaaBytes, "base64")
+                // This is where the matchBridgeRequest / ProcessVaaAndExecutePayload workflow will be triggered
             );
             console.log(`Submitted VAA: ${vaaBytes}\nTX: ${tx.hash}`);
         }
@@ -183,7 +236,7 @@ async function main() {
                 JSON.parse(
                     fs
                         .readFileSync(
-                            "./chains/evm/out/Messenger.sol/Messenger.json"
+                            "./chains/evm/out/IPLNTEST.sol/IPLN.json"
                         )
                         .toString()
                 ).abi,

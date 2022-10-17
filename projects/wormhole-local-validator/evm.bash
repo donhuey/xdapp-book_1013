@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -euo pipefail 
 
 # Start EVM Chain 0
 npx pm2 delete evm0 2> /dev/null || true

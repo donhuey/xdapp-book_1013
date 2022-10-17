@@ -4,20 +4,33 @@ pragma solidity ^0.8.0;
 import "./Wormhole/IWormhole.sol";
 
 contract Messenger {
-    string private current_msg;
+    bytes private current_msg;
     address private wormhole_core_bridge_address = address(0xC89Ce4735882C9F0f0FE26686c53074E09B0D550);
     IWormhole core_bridge = IWormhole(wormhole_core_bridge_address);
     uint32 nonce = 0;
     mapping(uint16 => bytes32) _applicationContracts;
     address owner;
     mapping(bytes32 => bool) _completedMessages;
+    event payLoadTracker(string _functionThatWasExecuted); // emit a message after calling the wormwhole core contract
+
 
     constructor(){
         owner = msg.sender;
     }
 
-    function sendMsg(bytes memory str) public returns (uint64 sequence) {
-        sequence = core_bridge.publishMessage(nonce, str, 1);
+    struct matchMade {
+                        address originCurrencyAddr; // address or bytes for multichain
+                        address destinationCurrencyAddr; // address or bytes for multichain
+                        uint amount;
+                    }
+
+    function sendMsg(matchMade memory str) public returns (uint64 sequence) {
+        matchMade memory responseObject = str;
+        emit payLoadTracker("message sent");
+        bytes memory abiEncodedParameters = abi.encode(responseObject); // encoding the most recent aggreementToBridgeReq
+
+
+        sequence = core_bridge.publishMessage(nonce, abiEncodedParameters, 1);
         nonce = nonce+1;
     }
 
@@ -37,10 +50,12 @@ contract Messenger {
         _completedMessages[vm.hash] = true;
 
         //Do the thing
-        current_msg = string(vm.payload);
+        current_msg = vm.payload;
+        emit payLoadTracker("message received");
+
     }
 
-    function getCurrentMsg() public view returns (string memory){
+    function getCurrentMsg() public view returns (bytes memory){
         return current_msg;
     }
     /**
